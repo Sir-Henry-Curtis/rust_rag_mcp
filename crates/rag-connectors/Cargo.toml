@@ -1,0 +1,23 @@
+[package]
+name        = "rag-connectors"
+version.workspace = true
+edition.workspace = true
+description = "Rust-native source connectors: SharePoint, filesystem, S3, Git (Phase 3+)"
+license.workspace = true
+
+[features]
+default    = ["sharepoint"]
+sharepoint = []
+
+[dependencies]
+rag-core.workspace    = true
+tokio.workspace       = true
+async-trait.workspace = true
+serde.workspace       = true
+serde_json.workspace  = true
+anyhow.workspace      = true
+thiserror.workspace   = true
+tracing.workspace     = true
+chrono.workspace      = true
+uuid.workspace        = true
+# Phase 3: add sharepoint_rest_api as a path/git dependency

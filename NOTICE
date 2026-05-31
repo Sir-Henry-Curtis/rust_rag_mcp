@@ -1,0 +1,109 @@
+rust-rag-mcp
+Copyright 2026 The rust-rag-mcp Contributors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+============================================================
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+============================================================
+
+This project depends on the following third-party packages.
+Each package retains its own copyright and license. Full
+license texts for all dependencies are available via:
+
+    cargo tree --licenses
+    # or for a complete SPDX report:
+    cargo install cargo-about && cargo about generate about.hbs
+
+------------------------------------------------------------
+MIT OR Apache-2.0
+------------------------------------------------------------
+async-trait     https://github.com/dtolnay/async-trait
+anyhow          https://github.com/dtolnay/anyhow
+chrono          https://github.com/chronotope/chrono
+serde           https://github.com/serde-rs/serde
+serde_json      https://github.com/serde-rs/json
+thiserror       https://github.com/dtolnay/thiserror
+uuid            https://github.com/uuid-rs/uuid
+bitflags        https://github.com/bitflags/bitflags
+hashbrown       https://github.com/rust-lang/hashbrown
+indexmap        https://github.com/indexmap-rs/indexmap
+libc            https://github.com/rust-lang/libc
+num-traits      https://github.com/rust-num/num-traits
+once_cell       https://github.com/matklad/once_cell
+parking_lot     https://github.com/Amanieu/parking_lot
+pin-project-lite https://github.com/taiki-e/pin-project-lite
+proc-macro2     https://github.com/dtolnay/proc-macro2
+quote           https://github.com/dtolnay/quote
+syn             https://github.com/dtolnay/syn
+windows-sys     https://github.com/microsoft/windows-rs
+
+------------------------------------------------------------
+MIT
+------------------------------------------------------------
+tokio           https://github.com/tokio-rs/tokio
+tracing         https://github.com/tokio-rs/tracing
+tracing-subscriber https://github.com/tokio-rs/tracing
+bytes           https://github.com/tokio-rs/bytes
+mio             https://github.com/tokio-rs/mio
+sharded-slab    https://github.com/hawkw/sharded-slab
+matchers        https://github.com/hawkw/matchers
+nu-ansi-term    https://github.com/nushell/nu-ansi-term
+valuable        https://github.com/tokio-rs/valuable
+redox_syscall   https://gitlab.redox-os.org/redox-os/syscall
+slab            https://github.com/tokio-rs/slab
+zmij            https://github.com/dtolnay/zmij
+
+------------------------------------------------------------
+Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+------------------------------------------------------------
+wasi            https://github.com/bytecodealliance/wasi
+wasm-encoder    https://github.com/bytecodealliance/wasm-tools
+wasmparser      https://github.com/bytecodealliance/wasm-tools
+wit-bindgen     https://github.com/bytecodealliance/wit-bindgen
+wit-parser      https://github.com/bytecodealliance/wasm-tools
+
+The Apache-2.0 WITH LLVM-exception adds a patent-grant
+exception (LLVM exception). These packages are used under
+the Apache-2.0 license for redistribution purposes.
+
+------------------------------------------------------------
+MIT OR Apache-2.0 OR LGPL-2.1-or-later
+------------------------------------------------------------
+r-efi           https://github.com/r-efi/r-efi
+
+Used under MIT OR Apache-2.0 (LGPL option not chosen).
+
+------------------------------------------------------------
+Unlicense OR MIT
+------------------------------------------------------------
+aho-corasick    https://github.com/BurntSushi/aho-corasick
+memchr          https://github.com/BurntSushi/memchr
+
+------------------------------------------------------------
+(MIT OR Apache-2.0) AND Unicode-3.0
+------------------------------------------------------------
+unicode-ident   https://github.com/dtolnay/unicode-ident
+
+The Unicode-3.0 license requires attribution for Unicode
+data. See https://www.unicode.org/license.txt
+
+------------------------------------------------------------
+Zlib
+------------------------------------------------------------
+foldhash        https://github.com/orlp/foldhash
+
+The Zlib license is permissive and compatible with Apache-2.0.
+
+============================================================
+PLANNED FUTURE DEPENDENCIES (license verification required
+before adding each dependency to Cargo.toml)
+============================================================
+
+zenoh           EPL-2.0 OR Apache-2.0  → use Apache-2.0
+sqlx            MIT OR Apache-2.0      → compatible
+axum            MIT                    → compatible
+rmcp            MIT (expected)         → verify before adding
+ort (ONNX)      MIT                    → compatible
+PyO3            MIT OR Apache-2.0      → compatible

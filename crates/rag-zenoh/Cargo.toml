@@ -1,0 +1,18 @@
+[package]
+name        = "rag-zenoh"
+version.workspace = true
+edition.workspace = true
+description = "Zenoh transport for rag-core external extension workers (Phase 4)"
+license.workspace = true
+
+[dependencies]
+rag-core.workspace               = true
+rag-extension-protocol.workspace = true
+tokio.workspace                  = true
+async-trait.workspace            = true
+serde.workspace                  = true
+serde_json.workspace             = true
+anyhow.workspace                 = true
+thiserror.workspace              = true
+tracing.workspace                = true
+# Phase 4: zenoh = { version = "1", features = ["default"] }

@@ -1,0 +1,13 @@
+[package]
+name        = "rag-extension-protocol"
+version.workspace = true
+edition.workspace = true
+description = "Versioned transport-neutral extension protocol for rag-core workers"
+license.workspace = true
+
+[dependencies]
+serde.workspace      = true
+serde_json.workspace = true
+thiserror.workspace  = true
+uuid.workspace       = true
+chrono.workspace     = true

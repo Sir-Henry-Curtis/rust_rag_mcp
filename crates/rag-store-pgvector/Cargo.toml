@@ -1,0 +1,17 @@
+[package]
+name        = "rag-store-pgvector"
+version.workspace = true
+edition.workspace = true
+description = "PostgreSQL/pgvector VectorStore implementation (Phase 2)"
+license.workspace = true
+
+[dependencies]
+rag-core.workspace    = true
+tokio.workspace       = true
+async-trait.workspace = true
+serde.workspace       = true
+serde_json.workspace  = true
+anyhow.workspace      = true
+thiserror.workspace   = true
+tracing.workspace     = true
+# Phase 2: add sqlx with postgres feature and pgvector crate
