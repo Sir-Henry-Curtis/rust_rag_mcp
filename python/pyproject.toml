@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rag-worker-sdk"
+version = "0.4.0"
+description = "Python SDK for rag-zenoh extension workers (document loaders, embedders, rerankers)"
+license = "Apache-2.0"
+readme = "../README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+    # Zenoh Python binding — EPL-2.0 OR Apache-2.0, we use Apache-2.0
+    "eclipse-zenoh>=1.0,<2",
+]
+
+[project.optional-dependencies]
+pdf = [
+    "pymupdf>=1.24",
+]
+docx = [
+    "python-docx>=1.1",
+]
+xlsx = [
+    "openpyxl>=3.1",
+]
+all = [
+    "rag-worker-sdk[pdf,docx,xlsx]",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["rag_worker_sdk"]

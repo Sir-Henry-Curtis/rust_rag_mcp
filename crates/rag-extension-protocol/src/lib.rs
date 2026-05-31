@@ -202,3 +202,33 @@ pub struct EmbedTextsResponse {
     pub embeddings: Vec<Vec<f32>>,
     pub dimension: usize,
 }
+
+// ── Rerank payloads ───────────────────────────────────────────────────────────
+
+/// Payload for `rerank` requests.
+///
+/// The caller sends the original query and a set of candidate chunks. The
+/// worker returns those chunk IDs sorted by relevance with a new score.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RerankRequest {
+    pub query: String,
+    pub candidates: Vec<RerankCandidate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RerankCandidate {
+    pub chunk_id: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RerankResponse {
+    pub ranked: Vec<RankedChunk>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RankedChunk {
+    pub chunk_id: String,
+    /// Normalised relevance score in [0, 1].
+    pub score: f32,
+}

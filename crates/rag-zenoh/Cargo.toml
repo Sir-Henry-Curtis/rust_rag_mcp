@@ -2,7 +2,7 @@
 name        = "rag-zenoh"
 version.workspace = true
 edition.workspace = true
-description = "Zenoh transport for rag-core external extension workers (Phase 4)"
+description = "Zenoh extension bus for rag-core: out-of-process document loaders, embedders, and rerankers"
 license.workspace = true
 
 [dependencies]
@@ -15,4 +15,12 @@ serde_json.workspace             = true
 anyhow.workspace                 = true
 thiserror.workspace              = true
 tracing.workspace                = true
-# Phase 4: zenoh = { version = "1", features = ["default"] }
+chrono.workspace                 = true
+uuid.workspace                   = true
+
+# Zenoh — EPL-2.0 OR Apache-2.0; we use Apache-2.0.
+# Peer mode works without an external router (multicast scout or direct TCP connect).
+zenoh = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
