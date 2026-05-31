@@ -2,7 +2,7 @@
 name        = "rag-store-pgvector"
 version.workspace = true
 edition.workspace = true
-description = "PostgreSQL/pgvector VectorStore implementation (Phase 2)"
+description = "PostgreSQL/pgvector VectorStore implementation for rag-core"
 license.workspace = true
 
 [dependencies]
@@ -14,4 +14,17 @@ serde_json.workspace  = true
 anyhow.workspace      = true
 thiserror.workspace   = true
 tracing.workspace     = true
-# Phase 2: add sqlx with postgres feature and pgvector crate
+chrono.workspace      = true
+uuid.workspace        = true
+
+sqlx = { version = "0.8", features = [
+    "postgres",
+    "runtime-tokio-rustls",
+    "uuid",
+    "chrono",
+    "json",
+    "migrate",
+] }
+# pgvector is used only for its text-format helper; sqlx integration is
+# handled manually via ::vector casts in SQL to avoid version coupling.
+pgvector = "0.4"

@@ -38,22 +38,22 @@ Acceptance criteria:
 
 ---
 
-## Milestone 2 — pgvector Store (v0.2.0)
+## Milestone 2 — pgvector Store ✅ (v0.2.0)
 
 **Goal:** Indexed content survives process restarts. Replace `MemoryVectorStore` with a durable PostgreSQL/pgvector backend.
 
 | Task | Notes | Status |
 |------|-------|--------|
-| Add `sqlx` (postgres + runtime-tokio-rustls) and `pgvector` crate | `crates/rag-store-pgvector/Cargo.toml` | [ ] |
-| Create migration: `rag_sources`, `rag_documents`, `rag_chunks` tables with `embedding vector(N)` column | `crates/rag-store-pgvector/migrations/` | [ ] |
-| Implement `VectorStore` trait using `<->` cosine-distance operator | `crates/rag-store-pgvector/src/lib.rs` | [ ] |
-| Add HNSW index on the embedding column for sub-linear search | `crates/rag-store-pgvector/migrations/` | [ ] |
-| Implement `delete_by_document` and `delete_by_source` with cascades | `crates/rag-store-pgvector/src/lib.rs` | [ ] |
-| Expose `PgVectorStore::connect(url: &str, dimension: usize)` async constructor | `crates/rag-store-pgvector/src/lib.rs` | [ ] |
-| Add index inspection: chunk count per source, source list, last-indexed timestamp | `crates/rag-store-pgvector/src/lib.rs` | [ ] |
-| Add Docker Compose file with `pgvector/pgvector:pg16` for local dev and CI | `docker-compose.yml` | [ ] |
-| Integration tests against a real Postgres instance (skipped when `TEST_DATABASE_URL` is unset) | `crates/rag-store-pgvector/tests/` | [ ] |
-| Update `rag-mcp` config to accept `store = "pgvector"` with connection URL | `crates/rag-mcp/src/config.rs` | [ ] |
+| Add `sqlx` (postgres + runtime-tokio-rustls) and `pgvector` crate | `crates/rag-store-pgvector/Cargo.toml` | ✅ |
+| Create migration: `rag_meta` + `rag_chunks` base schema; embedding column added dynamically at connect time | `crates/rag-store-pgvector/migrations/0001_initial.sql` | ✅ |
+| Implement `VectorStore` using `<=>` cosine-distance operator and text-literal vector binding (`$1::vector(N)`) | `crates/rag-store-pgvector/src/lib.rs` | ✅ |
+| Add HNSW index (`vector_cosine_ops`) created by `connect()` after the dimension is known | `crates/rag-store-pgvector/src/lib.rs` | ✅ |
+| Implement `delete_by_document` and `delete_by_source` | `crates/rag-store-pgvector/src/lib.rs` | ✅ |
+| Expose `PgVectorStore::connect(url: &str, dimension: usize)` async constructor with dimension-mismatch guard | `crates/rag-store-pgvector/src/lib.rs` | ✅ |
+| Add inspection helpers: `chunk_counts_by_source()`, `last_indexed_at(source_id)` | `crates/rag-store-pgvector/src/lib.rs` | ✅ |
+| Add Docker Compose file with `pgvector/pgvector:pg16` | `docker-compose.yml` | ✅ |
+| 7 integration tests (skipped when `TEST_DATABASE_URL` is unset) | `crates/rag-store-pgvector/tests/integration.rs` | ✅ |
+| `rag-mcp` config module: `StoreBackend`, `EmbedderProvider`, `RagConfig::validate()` | `crates/rag-mcp/src/config.rs` | ✅ |
 
 Acceptance criteria:
 
@@ -322,7 +322,7 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 | Milestone | Version | Status |
 |-----------|---------|--------|
 | 1 — Core Scaffold | v0.1.0 | ✅ |
-| 2 — pgvector Store | v0.2.0 | [ ] |
+| 2 — pgvector Store | v0.2.0 | ✅ |
 | 3 — SharePoint Connector + Document Parsing | v0.3.0 | [ ] |
 | 4 — Zenoh Extension Bus | v0.4.0 | [ ] |
 | 5 — MCP Layer | v0.5.0 | [ ] |

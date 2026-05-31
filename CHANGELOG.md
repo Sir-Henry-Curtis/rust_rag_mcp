@@ -4,6 +4,49 @@ All notable changes to this project are documented here.
 
 ---
 
+## [0.2.0] — pgvector Store
+
+### Added
+
+- **`crates/rag-store-pgvector/migrations/0001_initial.sql`** — base schema migration:
+  - `rag_meta` table: key/value store for runtime configuration; used to persist the embedding dimension and detect dimension mismatches at startup before any insert is attempted.
+  - `rag_chunks` table: `id`, `document_id`, `source_id`, `chunk_index`, `text`, `metadata JSONB`, `created_at`. The `embedding` column is absent from the migration because its type (`vector(N)`) encodes the dimension, which is only known at runtime.
+  - Indexes on `document_id` and `source_id` for efficient delete operations.
+
+- **`crates/rag-store-pgvector/src/lib.rs`** — `PgVectorStore` implementing `rag_core::traits::VectorStore`:
+  - `PgVectorStore::connect(url, dimension)` — creates the pool, runs embedded migrations, creates the pgvector extension if absent, writes/validates the dimension in `rag_meta` (returns `RagError::Store` on mismatch), adds the `embedding vector(N)` column via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, and creates the HNSW index with `vector_cosine_ops` operator class.
+  - Vectors are encoded as pgvector text literals (`[1.0,0.0,…]`) and cast in SQL via `$1::vector(N)`. This avoids version coupling between the `pgvector` crate's sqlx feature and the `sqlx` minor version in use.
+  - `upsert_chunks` — wraps all inserts for a batch in a single transaction; uses `ON CONFLICT (id) DO UPDATE` to overwrite stale chunks on re-index.
+  - `search(embedding, k, filter)` — cosine distance query `embedding <=> $1::vector(N)` with `ORDER BY … LIMIT k`; score returned as `1.0 - cosine_distance` (range -1 to 1). Optional `SearchFilter` applied via `= ANY($n::text[])` with an `array_length IS NULL` guard to skip empty filters.
+  - `delete_by_document` / `delete_by_source` — `DELETE WHERE` on the relevant column; no orphan rows.
+  - `count_chunks` — `SELECT COUNT(*)::bigint`.
+  - `chunk_counts_by_source()` — `GROUP BY source_id` aggregate for index inspection.
+  - `last_indexed_at(source_id)` — `MAX(created_at)` for a source; used to report last-sync time.
+
+- **`crates/rag-store-pgvector/tests/integration.rs`** — 7 integration tests; all are silently skipped when `TEST_DATABASE_URL` is not set:
+  - `upsert_and_count` — inserts 3 chunks across 2 documents, asserts `count_chunks >= 3`.
+  - `search_returns_closest_chunk` — one-hot vectors; asserts the aligned chunk scores ≈ 1.0 and ranks first.
+  - `search_with_source_filter` — two sources with identical embeddings; filter returns only the requested source.
+  - `delete_by_document_removes_only_that_document` — deletes one document's chunks; the other document's chunk remains.
+  - `upsert_updates_existing_chunk` — same `ChunkId` re-upserted with new text and embedding; search reflects the update.
+  - `dimension_mismatch_is_rejected` — second `connect()` with a different dimension returns `Err` containing "mismatch".
+  - `chunk_counts_by_source_and_last_indexed` — verifies `chunk_counts_by_source()` and `last_indexed_at()`.
+
+- **`docker-compose.yml`** — `pgvector/pgvector:pg16` service with healthcheck, named volume, and default credentials (`rag`/`rag_password`/`rag_dev`). Run with `docker compose up -d` before integration tests.
+
+- **`crates/rag-mcp/src/config.rs`** — `RagConfig` struct loaded from `rag.toml` at server startup:
+  - `StoreConfig { backend: StoreBackend, database_url: Option<String> }` — backends: `memory` (default), `pgvector`.
+  - `EmbedderConfig { provider: EmbedderProvider, dimension: usize, openai_model, model_path }` — providers: `mock` (default), `openai`, `local-onnx`.
+  - `RagConfig::validate()` — returns a human-readable `Err(String)` for missing `database_url` when backend is pgvector, missing `OPENAI_API_KEY` env var when provider is openai, and missing `model_path` when provider is local-onnx. 3 unit tests cover the validation logic.
+
+### Changed
+
+- `crates/rag-store-pgvector/Cargo.toml` — added `sqlx = "0.8"` (postgres, runtime-tokio-rustls, uuid, chrono, json, migrate features) and `pgvector = "0.4"` (text-format helper only; sqlx feature intentionally omitted to avoid version coupling).
+- `crates/rag-mcp/src/lib.rs` — added `pub mod config` declaration.
+- Version bumped to 0.2.0.
+
+---
+
 ## [0.1.0] — Core Scaffold
 
 ### Added

@@ -1,0 +1,14 @@
+# Normalise line endings to LF in the repository; check out as native on each OS.
+* text=auto
+
+# Always LF for shell scripts and Rust source regardless of OS.
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+
+# Binary files — never transform.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.wasm  binary

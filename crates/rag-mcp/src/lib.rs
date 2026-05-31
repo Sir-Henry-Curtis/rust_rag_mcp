@@ -15,4 +15,6 @@
 //! Mutation tools (`rag_index_source`, `rag_sync_source`) can be blocked
 //! by setting `RAG_READ_ONLY=true` in the environment.
 
+pub mod config;
+
 pub struct RagMcpServer;
