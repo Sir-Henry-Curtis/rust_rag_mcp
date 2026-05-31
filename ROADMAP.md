@@ -314,7 +314,7 @@ Acceptance criteria:
 Genuine improvements that should not displace the milestones above. Revisit after v1.0.0.
 
 - **Ephemeral chat RAG mode** — Run a short-lived MCP server per chat/session for uploaded documents that are too large for the model context. Index into memory or temporary storage, expose search/context tools during the session, and delete all chunks and extracted text on shutdown, explicit clear, or TTL expiry. This runs alongside the persistent SharePoint-backed RAG instance rather than replacing it.
-- **Hybrid search (BM25 + vector)** — Combine keyword scoring with vector similarity for better results on exact-match queries. pgvector supports this via `ts_rank` + `<->` combined scoring.
+- **Hybrid search (BM25 + vector)** — Combine keyword scoring with vector similarity for better results on exact-match queries. pgvector supports this via `ts_rank` + `<->` combined scoring. *(Confirmed gap by M1 and M2 parity reviews.)*
 - **Cross-encoder reranking** — A cross-encoder model reading (query, passage) pairs together produces better relevance scores than bi-encoder cosine similarity alone. Could run as a Zenoh extension worker.
 - **Multi-modal indexing** — Extract and index diagrams, charts, and images from PDFs alongside the text. Requires a vision model extension worker.
 - **Query rewriting and expansion** — Automatically expand a short user query into multiple semantic variants before retrieval. Improves recall on ambiguous or terse questions.
@@ -322,12 +322,19 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 - **Microsoft Graph connector** — Index SharePoint Online content via Graph `/drives` and `/sites` endpoints for organisations where Graph is preferred over the `/_api` surface.
 - **Alternative VectorStore adapters** — Elasticsearch/OpenSearch dense vector, Qdrant, Weaviate, Pinecone. The `VectorStore` trait is the extension point; each would be a new crate.
 - **Real-time indexing via SharePoint webhooks** — Subscribe to SharePoint list webhooks to trigger incremental sync immediately on document change rather than on a polling schedule.
-- **Streaming search responses** — Return search results incrementally via SSE as chunks are scored, rather than buffering the full result set. Reduces time-to-first-result.
-- **Automated chunk quality evaluation** — Score chunks for informativeness and coherence during indexing; discard low-quality chunks (e.g., table-of-contents pages, blank headers) before storing.
+- **Streaming search responses** — Return search results incrementally via SSE as chunks are scored, rather than buffering the full result set. Reduces time-to-first-result. *(Supported by `CapabilityDescriptor.supports_streaming`; Zenoh transport deferred.)*
+- **Automated chunk quality evaluation** — Score chunks for informativeness and coherence during indexing; discard low-quality chunks (e.g., table-of-contents pages, blank headers) before storing. *(Confirmed gap by M3 parity review vs RAGFlow.)*
 - **Federated search** — Fan a single query out to multiple independent RAG instances (different tenants, different source types) and merge ranked results.
 - **Git repository connector** — Index Markdown documentation, READMEs, and code comments from Git repositories. Useful for internal developer knowledge bases.
 - **Web crawler connector** — Index public-facing documentation sites. Lower priority than SharePoint for the primary use case.
 - **S3 connector** — Index documents stored in AWS S3 or S3-compatible object storage (MinIO, Cloudflare R2).
+- **`RecursiveChunker`** — Splits on paragraph → sentence → word → character boundaries in sequence; better than `\n\n`-only splitting for varied document formats. *(From M1 parity vs LangChain `RecursiveCharacterTextSplitter`.)*
+- **`MarkdownChunker`** — Splits on heading levels and preserves the section hierarchy in `ChunkMetadata.section`. *(From M1 parity vs Haystack `MarkdownDocumentSplitter`.)*
+- **MMR diversification** — Maximal Marginal Relevance penalises near-duplicate results; useful when a corpus has many similar documents. *(From M2 parity vs LangChain.)*
+- **Filtered `count_chunks(filter)`** — Per-source chunk counts needed for operational monitoring without a full table scan. *(From M2 parity.)*
+- **Round-robin worker selection** — When multiple Zenoh workers handle the same content type, distribute load across them rather than always picking the first. *(From M4 parity vs Haystack parallel components.)*
+- **Async Python SDK** — `asyncio`-native base classes for `DocumentLoaderWorker`, `EmbedderWorker`, and `RerankerWorker` using zenoh's Python async API. *(From M4 parity vs LangChain `Runnable.ainvoke()`.)*
+- **Per-chunk `active` flag** — Allow operators to disable specific chunks without re-indexing the full document. Dify supports per-segment enable/disable. *(From M3 parity.)*
 
 ---
 

@@ -291,9 +291,14 @@ impl VectorStore for PgVectorStore {
                         embedding: None,
                         metadata,
                     },
+                    // Cosine similarity from pgvector is in [-1, 1].
+                    // Clamp to [0, 1]: a score below 0 means the vectors are
+                    // roughly opposite, which is indistinguishable from "no
+                    // match" for retrieval purposes, and callers expect [0, 1].
                     score: row
                         .try_get::<f32, _>("score")
-                        .map_err(|e| RagError::Store(e.to_string()))?,
+                        .map_err(|e| RagError::Store(e.to_string()))?
+                        .max(0.0),
                 })
             })
             .collect()

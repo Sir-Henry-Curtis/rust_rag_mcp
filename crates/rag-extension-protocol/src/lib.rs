@@ -189,6 +189,42 @@ pub struct DocumentSection {
     pub title: Option<String>,
     pub text: String,
     pub page: Option<u32>,
+    /// Optional layout metadata for layout-aware parsing (PDF tables, figures, etc.).
+    /// Workers that perform visual layout analysis (RAGFlow-style) populate this.
+    /// Workers that do plain text extraction leave it `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_hints: Option<LayoutHints>,
+}
+
+/// Layout metadata from a document-parser extension worker.
+///
+/// Populated by workers that perform visual layout analysis (e.g. PDF bounding-box
+/// extraction). Callers that only need plain text can ignore this entirely.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutHints {
+    /// Visual block type inferred by the parser.
+    pub block_type: Option<LayoutBlockType>,
+    /// Zero-based column index on the page (0 = left column in a multi-column layout).
+    pub column: Option<u32>,
+    /// Bounding box as `[x0, y0, x1, y1]` in page-coordinate units (PDF points
+    /// or pixel coordinates depending on the parser).
+    pub bbox: Option<[f32; 4]>,
+}
+
+/// The visual type of a layout block returned by an extension worker.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LayoutBlockType {
+    Paragraph,
+    Heading,
+    Table,
+    Figure,
+    Caption,
+    Header,
+    Footer,
+    ListItem,
+    CodeBlock,
+    Other,
 }
 
 /// Payload for `embed_texts` requests (batch).
