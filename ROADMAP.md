@@ -124,6 +124,7 @@ Acceptance criteria:
 - A worker that stops sending heartbeats is evicted within 3× the heartbeat interval. ✅ (watchdog_evicts test)
 - All Zenoh transport can be secured with mTLS via `TlsConfig` in `ZenohConfig` alone. ✅
 - 7 integration tests pass without an external router, using in-process TCP loopback pairs. ✅
+- Parity check: compare the Zenoh worker-bus and Python SDK ergonomics with Haystack components, LangChain loaders/tools, Dify external knowledge workflows, and Flowise pipeline nodes; document why this project keeps extension workers transport-neutral and out-of-process.
 
 ---
 
