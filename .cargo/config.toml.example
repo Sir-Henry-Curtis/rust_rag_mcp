@@ -1,0 +1,21 @@
+# Windows SDK path fix for MSVC builds outside a VS Developer Command Prompt.
+#
+# Linux and macOS users: no action needed — your system toolchain finds its
+# libraries automatically. Do not copy this file on those platforms.
+#
+# Windows users:
+#   1. Copy this file to .cargo/config.toml (gitignored, machine-specific).
+#   2. Update the paths below to match your installed versions of:
+#      - Visual Studio Build Tools (MSVC tools path)
+#      - Windows SDK (WinKit path)
+#   Find your MSVC version in:
+#     C:\Program Files (x86)\Microsoft Visual Studio\<year>\BuildTools\VC\Tools\MSVC\
+#   Find your SDK version in:
+#     C:\Program Files (x86)\Windows Kits\10\Lib\
+#
+# These variables are only read by the MSVC linker; they are silently ignored
+# on Linux and macOS, so leaving this file in place on those platforms is safe.
+
+[env]
+LIB     = "C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\lib\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\um\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\ucrt\\x64"
+INCLUDE = "C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\include;C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt;C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um;C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared"

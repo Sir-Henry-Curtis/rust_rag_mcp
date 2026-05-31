@@ -1,3 +1,6 @@
 /target
 /.tasktronaut
 /.tasktronautrules
+
+# Machine-specific Windows SDK path config — copy from .cargo/config.toml.example and edit locally
+.cargo/config.toml

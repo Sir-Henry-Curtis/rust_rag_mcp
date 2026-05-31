@@ -128,7 +128,14 @@ Set `RAG_READ_ONLY=true` to block all mutation tools.
 
 ### Windows Build Note
 
-When running `cargo build` or `cargo check` outside a Visual Studio Developer Command Prompt, the MSVC linker needs to find Windows SDK libraries. The `.cargo/config.toml` in this repo sets `LIB` and `INCLUDE` for MSVC 14.51 and Windows SDK 10.0.26100.0. Update those paths if you upgrade Visual Studio Build Tools or the Windows SDK.
+When running `cargo build` or `cargo check` outside a Visual Studio Developer Command Prompt, the MSVC linker needs to find Windows SDK libraries. A machine-specific config file is required:
+
+```sh
+copy .cargo\config.toml.example .cargo\config.toml
+# then open .cargo\config.toml and update the MSVC and Windows SDK paths to match your installation
+```
+
+`.cargo/config.toml` is gitignored (it contains machine-specific paths). The example file documents where to find the correct version numbers.
 
 On Linux and macOS no special configuration is needed.
 
@@ -164,6 +171,7 @@ See [ROADMAP.md](ROADMAP.md) for the full plan toward v1.0.
 - [Multi-modal Indexing Design](docs/multimodal-indexing-design.md) outlines how diagrams, charts, screenshots, and scanned pages can be indexed through vision extension workers.
 - [Query Rewriting and Conversation-Aware Retrieval](docs/query-rewriting-and-conversation-retrieval.md) details query expansion, follow-up resolution, and multi-query retrieval planning.
 - [Federated Search Design](docs/federated-search-design.md) describes fan-out search across multiple independent RAG instances and merged citation-ready results.
+- [Ephemeral Chat RAG Mode](docs/ephemeral-chat-rag-mode.md) describes a per-chat MCP instance for uploaded files with no long-term storage.
 
 ## Contributing
 
