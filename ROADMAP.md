@@ -149,6 +149,11 @@ Acceptance criteria:
 | Support stdio transport (Claude Desktop) | `crates/rag-mcp/src/main.rs` | [ ] |
 | Support HTTP/SSE transport (Cursor, remote clients) | `crates/rag-mcp/src/main.rs` | [ ] |
 | Integration tests: all 7 tools against in-memory store | `crates/rag-mcp/tests/` | [ ] |
+| Add `prev_chunk_id` and `next_chunk_id` to `ChunkMetadata` for context-window expansion | `crates/rag-core/src/models.rs` | [ ] |
+| Add `IndexJobStatus` enum and tracking to `Indexer` so `rag_index_source` can report progress | `crates/rag-core/src/indexer.rs` | [ ] |
+| Add `SearchFilter.modified_after: Option<DateTime<Utc>>` for date-range filtering | `crates/rag-core/src/models.rs` | [ ] |
+| Enrich `DocumentMetadata` with SharePoint list item fields (author, created\_at, version) via additional REST calls | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
+| Add `max_payload_bytes` guard to `ZenohCaller.load_document` before sending | `crates/rag-zenoh/src/call.rs` | [ ] |
 
 Acceptance criteria:
 
@@ -177,6 +182,8 @@ Acceptance criteria:
 | Support loading model files from a local path or by HuggingFace Hub ID | `crates/rag-core/src/embedder.rs` | [ ] |
 | Add `[embedder]` section to `rag.toml` with `provider = "openai" \| "local-onnx" \| "mock"` | `crates/rag-mcp/src/config.rs` | [ ] |
 | Validate that `PgVectorStore` dimension matches the selected embedder's dimension at startup | `crates/rag-mcp/src/config.rs` | [ ] |
+| Add `embed_query_mode` to `Embedder` trait/config for asymmetric models (separate model for query vs document embedding) | `crates/rag-core/src/traits.rs` | [ ] |
+| Fan out large `embed_texts` batches across multiple registered worker instances in `ZenohCaller` | `crates/rag-zenoh/src/call.rs` | [ ] |
 
 Acceptance criteria:
 
@@ -206,6 +213,10 @@ Acceptance criteria:
 | Add `cargo deny check licenses` as required CI check | `.github/workflows/ci.yml` | [ ] |
 | Add `cargo bench` benchmarks: chunker throughput, cosine similarity, full retriever pipeline | `crates/rag-core/benches/` | [ ] |
 | Add load test: 50,000 chunks in `PgVectorStore`, 100 concurrent search queries | `benches/load_test.rs` | [ ] |
+| Migration 0002: add indexed `modified_at` and `content_type` columns to `rag_chunks` for efficient metadata filtering | `crates/rag-store-pgvector/migrations/` | [ ] |
+| Add chunk quality filter to `Indexer`: discard chunks below a configurable minimum length or entropy threshold | `crates/rag-core/src/indexer.rs` | [ ] |
+| Add `list_documents_paginated(cursor) → (Vec<DocumentRef>, Option<String>)` to `Connector` trait | `crates/rag-core/src/traits.rs` | [ ] |
+| Add round-robin selection across multiple registered workers for the same content type in `ExtensionRegistry` | `crates/rag-zenoh/src/registry.rs` | [ ] |
 
 Acceptance criteria:
 
@@ -232,6 +243,7 @@ Acceptance criteria:
 | Decide whether Python search consumers need PyO3 bindings or Zenoh client SDK only | `docs/extension-authors.md` | [ ] |
 | If PyO3: expose coarse-grained `RagClient` API with `maturin`; publish to PyPI | `crates/rag-py/` | [ ] |
 | CI: run Python loader integration tests in the same pipeline as Rust tests | `.github/workflows/ci.yml` | [ ] |
+| Add async Python SDK: `asyncio`-native base classes for all three worker types | `python/rag_worker_sdk/async_worker.py` | [ ] |
 
 Acceptance criteria:
 
@@ -306,6 +318,8 @@ Acceptance criteria:
 - **Browser-side JavaScript / WASM embedding** — The Rust core targets server-side deployment. A browser JS SDK is not planned.
 - **Synchronous (non-async) API surface** — All `rag-core` traits are async. A sync wrapper is not planned; callers that need sync can use `tokio::runtime::Runtime::block_on`.
 - **SharePoint Add-in packaging or browser cross-domain libraries** — The connector targets `/_api` protocol-level REST, not SharePoint Add-in or CSOM abstractions.
+- **DAG pipeline composition** — The indexing pipeline is intentionally linear (Connector → Chunker → Embedder → VectorStore). Complex branching, conditional routing, and multi-source fan-out belong in the orchestrator layer (e.g., the MCP tool or a workflow engine), not in rag-core. *(Confirmed out of scope by M1 parity vs Haystack pipeline graphs.)*
+- **Flowise / visual pipeline builders** — Flowise nodes are in-process, JavaScript/TypeScript, and UI-configured. The architecture is fundamentally different from this project's out-of-process, transport-neutral extension workers. No compatibility layer is planned. *(Confirmed out of scope by M4 parity.)*
 
 ---
 
@@ -323,7 +337,7 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 - **Alternative VectorStore adapters** — Elasticsearch/OpenSearch dense vector, Qdrant, Weaviate, Pinecone. The `VectorStore` trait is the extension point; each would be a new crate.
 - **Real-time indexing via SharePoint webhooks** — Subscribe to SharePoint list webhooks to trigger incremental sync immediately on document change rather than on a polling schedule.
 - **Streaming search responses** — Return search results incrementally via SSE as chunks are scored, rather than buffering the full result set. Reduces time-to-first-result. *(Supported by `CapabilityDescriptor.supports_streaming`; Zenoh transport deferred.)*
-- **Automated chunk quality evaluation** — Score chunks for informativeness and coherence during indexing; discard low-quality chunks (e.g., table-of-contents pages, blank headers) before storing. *(Confirmed gap by M3 parity review vs RAGFlow.)*
+- **Automated chunk quality evaluation (advanced)** — Post-M7 enhancements: LLM-based informativeness scoring, semantic deduplication across chunks, layout-aware boilerplate detection using `LayoutHints`. The basic length/entropy threshold ships in M7; this covers anything beyond that.
 - **Federated search** — Fan a single query out to multiple independent RAG instances (different tenants, different source types) and merge ranked results.
 - **Git repository connector** — Index Markdown documentation, READMEs, and code comments from Git repositories. Useful for internal developer knowledge bases.
 - **Web crawler connector** — Index public-facing documentation sites. Lower priority than SharePoint for the primary use case.
@@ -332,8 +346,8 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 - **`MarkdownChunker`** — Splits on heading levels and preserves the section hierarchy in `ChunkMetadata.section`. *(From M1 parity vs Haystack `MarkdownDocumentSplitter`.)*
 - **MMR diversification** — Maximal Marginal Relevance penalises near-duplicate results; useful when a corpus has many similar documents. *(From M2 parity vs LangChain.)*
 - **Filtered `count_chunks(filter)`** — Per-source chunk counts needed for operational monitoring without a full table scan. *(From M2 parity.)*
-- **Round-robin worker selection** — When multiple Zenoh workers handle the same content type, distribute load across them rather than always picking the first. *(From M4 parity vs Haystack parallel components.)*
-- **Async Python SDK** — `asyncio`-native base classes for `DocumentLoaderWorker`, `EmbedderWorker`, and `RerankerWorker` using zenoh's Python async API. *(From M4 parity vs LangChain `Runnable.ainvoke()`.)*
+- **Advanced worker routing** — Post-M7 enhancements beyond basic round-robin: weighted routing, health-score-based selection, sticky routing for stateful workers. Basic round-robin ships in M7. *(From M4 parity.)*
+- **Async Python SDK** — Moved to M8 task list.
 - **Per-chunk `active` flag** — Allow operators to disable specific chunks without re-indexing the full document. Dify supports per-segment enable/disable. *(From M3 parity.)*
 
 ---
