@@ -9,8 +9,8 @@ pub mod traits;
 
 pub use error::RagError;
 pub use models::{
-    CallerContext, ChunkId, ChunkMetadata, Citation, DocumentId, DocumentMetadata, DocumentRef,
-    Document, SearchFilter, SearchResult, ScoredChunk, Source, SourceId,
+    CallerContext, ChunkId, ChunkMetadata, Citation, ContentSection, DocumentId, DocumentMetadata,
+    DocumentRef, Document, SearchFilter, SearchResult, ScoredChunk, Source, SourceId,
 };
 pub use traits::{
     ChangeEvent, ChangeKind, Chunker, Connector, Embedder, PermissionFilter, Reranker, Retriever,

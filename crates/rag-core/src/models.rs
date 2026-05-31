@@ -91,6 +91,27 @@ pub struct DocumentRef {
     pub size_bytes: Option<u64>,
 }
 
+/// A pre-parsed section of a document returned by an extension worker.
+///
+/// Extension workers (PDF loaders, DOCX loaders, etc.) return structured sections
+/// rather than a flat text blob. Each section carries the page it came from and
+/// the section heading, so the chunker can preserve this metadata in chunks
+/// without re-parsing the flat `content` string.
+///
+/// When `Document.sections` is non-empty the `ParagraphChunker` uses these
+/// directly (one or more chunks per section, no cross-section overlap).
+/// When `Document.sections` is empty it falls back to heading-aware paragraph
+/// splitting of `Document.content`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ContentSection {
+    /// Section heading as extracted by the parser (e.g. "Executive Summary").
+    pub title: Option<String>,
+    /// Plain text of this section.
+    pub text: String,
+    /// Page number within the original document where this section starts.
+    pub page: Option<u32>,
+}
+
 /// A fully loaded document with extracted text ready for chunking.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -98,7 +119,15 @@ pub struct Document {
     pub source_id: SourceId,
     pub title: String,
     /// Plain-text content extracted from the original file.
+    /// Always populated. When `sections` is non-empty this is the concatenation
+    /// of all section texts and is used as a fallback / full-text field.
     pub content: String,
+    /// Pre-parsed sections from an extension worker.
+    /// Empty for plain-text documents loaded directly by the connector.
+    /// Non-empty when an extension worker returned structured section data
+    /// (e.g. a PDF loader that tracks page numbers and headings).
+    #[serde(default)]
+    pub sections: Vec<ContentSection>,
     pub url: Option<String>,
     pub metadata: DocumentMetadata,
 }

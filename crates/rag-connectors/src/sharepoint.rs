@@ -246,6 +246,7 @@ impl Connector for SharePointConnector {
             source_id: doc_ref.source_id.clone(),
             title: doc_ref.title.clone(),
             content,
+            sections: vec![],
             url: doc_ref.url.clone(),
             metadata: DocumentMetadata {
                 modified_at: doc_ref.modified_at,

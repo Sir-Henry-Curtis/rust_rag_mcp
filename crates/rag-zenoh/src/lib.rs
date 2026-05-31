@@ -48,8 +48,8 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use rag_core::{
-    RagError,
-    models::ScoredChunk,
+    ContentSection, RagError,
+    models::{Document, DocumentMetadata, DocumentRef, ScoredChunk},
     traits::{Embedder, Reranker},
 };
 use rag_extension_protocol::{
@@ -178,7 +178,9 @@ impl ZenohDocumentLoader {
     }
 
     /// Parse `data_base64` (base64-encoded raw file bytes) using a registered
-    /// worker that handles `content_type`.  Returns extracted text and sections.
+    /// worker that handles `content_type`.  Returns the raw extension-protocol
+    /// response.  Use [`build_document`](Self::build_document) to convert it
+    /// into a `rag_core::Document` with sections populated.
     pub async fn load(
         &self,
         content_type: &str,
@@ -205,5 +207,44 @@ impl ZenohDocumentLoader {
                 },
             )
             .await
+    }
+
+    /// Convert a [`LoadDocumentResponse`] into a [`Document`] suitable for
+    /// passing to the `Indexer`.
+    ///
+    /// The extension-protocol `sections[]` (each carrying `title`, `text`,
+    /// `page`, and optional `layout_hints`) are mapped to
+    /// `rag_core::ContentSection` values stored in `Document.sections`.  The
+    /// `ParagraphChunker` will use these to preserve page numbers and section
+    /// titles in `ChunkMetadata` rather than re-parsing the flat text.
+    ///
+    /// `layout_hints` are intentionally dropped at this boundary — they are
+    /// useful for workers and archival storage but rag-core does not need
+    /// bounding-box information for retrieval.
+    pub fn build_document(doc_ref: &DocumentRef, response: LoadDocumentResponse) -> Document {
+        let sections: Vec<ContentSection> = response
+            .sections
+            .into_iter()
+            .map(|s| ContentSection { title: s.title, text: s.text, page: s.page })
+            .collect();
+
+        Document {
+            id: doc_ref.id.clone(),
+            source_id: doc_ref.source_id.clone(),
+            title: doc_ref.title.clone(),
+            content: response.text,
+            sections,
+            url: doc_ref.url.clone(),
+            metadata: DocumentMetadata {
+                modified_at: doc_ref.modified_at,
+                page_count: response.page_count,
+                file_type: doc_ref
+                    .content_type
+                    .as_deref()
+                    .and_then(|ct| ct.split('/').last())
+                    .map(String::from),
+                ..Default::default()
+            },
+        }
     }
 }

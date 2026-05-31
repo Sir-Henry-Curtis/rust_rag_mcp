@@ -26,6 +26,7 @@ fn sample_document() -> Document {
         ]
         .join("\n\n"),
         url: Some("https://example.com/reports/thermal-q3".to_string()),
+        sections: vec![],
         metadata: DocumentMetadata::default(),
     }
 }
