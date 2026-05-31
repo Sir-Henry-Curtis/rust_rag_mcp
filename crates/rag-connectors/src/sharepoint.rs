@@ -58,6 +58,7 @@ pub struct SharePointConnectorConfig {
 /// TLS settings, retry limits, and concurrency independently of the RAG layer.
 ///
 /// ```no_run
+/// use std::sync::Arc;
 /// use sharepoint_mcp::{SharePointClient, Config, AuthMode};
 /// use rag_connectors::sharepoint::{SharePointConnector, SharePointConnectorConfig};
 /// use rag_core::models::SourceId;
@@ -65,10 +66,20 @@ pub struct SharePointConnectorConfig {
 /// let sp_config = Config {
 ///     site_url: "https://tenant.sharepoint.com/sites/mysite".into(),
 ///     auth: AuthMode::AzureAd {
-///         tenant_id: "…".into(), client_id: "…".into(),
-///         client_secret: "…".into(), authority: None, scope: None,
+///         tenant_id: "my-tenant".into(),
+///         client_id: "my-client".into(),
+///         client_secret: "my-secret".into(),
+///         authority: None,
+///         scope: None,
 ///     },
-///     ..Default::default()
+///     tls_accept_invalid: false,
+///     timeout_secs: 30,
+///     read_only: true,
+///     max_retries: 3,
+///     max_concurrent: 0,
+///     audit_log: false,
+///     max_connections: 0,
+///     keep_alive_secs: 90,
 /// };
 /// let client = SharePointClient::new(sp_config).unwrap();
 /// let connector = SharePointConnector::new(

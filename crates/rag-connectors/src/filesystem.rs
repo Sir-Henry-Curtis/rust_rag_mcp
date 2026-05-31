@@ -10,7 +10,6 @@
 //! `RagError::Connector` pointing to Phase 4.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -223,7 +222,6 @@ fn stable_id_from_path(path: &Path) -> DocumentId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write as _;
 
     fn make_connector(root: &Path, extensions: Vec<&str>) -> FilesystemConnector {
         FilesystemConnector::new(

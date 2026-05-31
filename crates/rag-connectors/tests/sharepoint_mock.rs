@@ -95,6 +95,14 @@ async fn list_documents_maps_files_to_document_refs() {
         .mount(&server)
         .await;
 
+    // get_folder_files_recursive also fetches subfolders; return empty so recursion stops.
+    Mock::given(method("GET"))
+        .and(path_regex("/sites/test/Shared%20Documents.*Folders"))
+        .respond_with(ResponseTemplate::new(200)
+            .set_body_json(serde_json::json!({ "d": { "results": [] } })))
+        .mount(&server)
+        .await;
+
     let connector = make_connector(&server);
     let docs = connector.list_documents().await.unwrap();
 
@@ -157,6 +165,13 @@ async fn list_documents_skips_oversized_files() {
         .mount(&server)
         .await;
 
+    Mock::given(method("GET"))
+        .and(path_regex("/sites/test/Shared%20Documents.*Folders"))
+        .respond_with(ResponseTemplate::new(200)
+            .set_body_json(serde_json::json!({ "d": { "results": [] } })))
+        .mount(&server)
+        .await;
+
     let docs = connector.list_documents().await.unwrap();
     assert_eq!(docs.len(), 1);
     assert_eq!(docs[0].title, "small.txt");
@@ -166,14 +181,14 @@ async fn list_documents_skips_oversized_files() {
 async fn load_document_decodes_base64_content() {
     let server = MockServer::start().await;
 
-    // SharePoint returns base64-encoded file content.
+    // get_file_content() calls $value which returns raw bytes, then base64-encodes
+    // them before returning. The mock should return raw bytes (not pre-encoded).
     let raw = "Hello from SharePoint!";
-    let b64 = base64::engine::general_purpose::STANDARD.encode(raw);
 
     // The client calls /_api/web/GetFileByServerRelativeUrl('{url}')/$value
     Mock::given(method("GET"))
         .and(path_regex(".*\\$value"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(&b64))
+        .respond_with(ResponseTemplate::new(200).set_body_string(raw))
         .mount(&server)
         .await;
 
@@ -248,6 +263,21 @@ async fn changes_since_parses_change_token_and_events() {
             ]
         }
     });
+
+    // post() fetches a request digest before every POST call.
+    Mock::given(method("POST"))
+        .and(wiremock::matchers::path("/_api/contextinfo"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "d": {
+                "GetContextWebInformation": {
+                    "FormDigestValue": "test-digest",
+                    "FormDigestTimeoutSeconds": 1800,
+                    "WebFullUrl": server.uri()
+                }
+            }
+        })))
+        .mount(&server)
+        .await;
 
     Mock::given(method("POST"))
         .and(path_regex(".*GetChanges"))

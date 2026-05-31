@@ -172,6 +172,7 @@ See [ROADMAP.md](ROADMAP.md) for the full plan toward v1.0.
 - [Query Rewriting and Conversation-Aware Retrieval](docs/query-rewriting-and-conversation-retrieval.md) details query expansion, follow-up resolution, and multi-query retrieval planning.
 - [Federated Search Design](docs/federated-search-design.md) describes fan-out search across multiple independent RAG instances and merged citation-ready results.
 - [Ephemeral Chat RAG Mode](docs/ephemeral-chat-rag-mode.md) describes a per-chat MCP instance for uploaded files with no long-term storage.
+- [RAG Parity Checking](docs/rag-parity-checking.md) defines how to compare this project against open-source RAG systems such as Haystack, LlamaIndex, RAGFlow, Dify, AnythingLLM, PrivateGPT, and Khoj.
 
 ## Contributing
 

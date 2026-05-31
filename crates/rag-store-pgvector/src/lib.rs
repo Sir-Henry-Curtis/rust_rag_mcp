@@ -27,6 +27,7 @@ fn encode_vec(v: &[f32]) -> String {
 /// The `embedding` column and HNSW index are created dynamically in
 /// [`PgVectorStore::connect`] because the column type encodes the dimension
 /// (e.g. `vector(384)`) which is only known at runtime.
+#[derive(Debug)]
 pub struct PgVectorStore {
     pool: PgPool,
     dimension: usize,

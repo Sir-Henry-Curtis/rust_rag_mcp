@@ -1,12 +1,12 @@
 # Roadmap — rust-rag-mcp
 
-## Current State (v0.1.0)
+## Current State (v0.3.0)
 
-7-crate Cargo workspace establishing a library-first RAG (Retrieval-Augmented Generation) platform and MCP server for enterprise document search. `rag-core` owns the durable domain model and trait surface: `Connector`, `Chunker`, `Embedder`, `VectorStore`, `Retriever`, `PermissionFilter`, and `Reranker`. Working implementations ship for `ParagraphChunker` (overlap-aware paragraph splitting), `MockEmbedder` (deterministic hash-based vectors for tests), `MemoryVectorStore` (in-memory cosine similarity), `Indexer` (chunk → embed → store pipeline), and `StandardRetriever` (embed query → overfetch → permission filter → citation). `rag-extension-protocol` provides versioned `rag.extension.v1` JSON envelopes (`CapabilityDescriptor`, `RequestEnvelope`, `ResponseEnvelope`, `Heartbeat`, typed `LoadDocumentRequest/Response`, `EmbedTextsRequest/Response`) for out-of-process extension workers. Five crates are stubbed with full implementation notes: `rag-store-pgvector`, `rag-connectors` (with `SharePointConnector` skeleton), `rag-zenoh`, `rag-mcp` (7 tools named and documented), and `rag-server`. 3 integration tests pass on all three platforms. Apache-2.0 licensed with full third-party attribution.
+7-crate Cargo workspace with three completed milestones. `rag-core` owns the durable domain model and trait surface (`Connector`, `Chunker`, `Embedder`, `VectorStore`, `Retriever`, `PermissionFilter`, `Reranker`) with working implementations: `ParagraphChunker`, `MockEmbedder`, `MemoryVectorStore`, `Indexer`, `StandardRetriever`. `rag-store-pgvector` provides a production-grade PostgreSQL+pgvector durable store with HNSW indexing, migration support, and dimension-mismatch guarding. `rag-connectors` ships a fully-tested `SharePointConnector` (list → load → changes_since with change tokens, base64 decode, extension/size filtering, stable sha256 document IDs) and a `FilesystemConnector` (recursive walk, UTF-8 text files, binary format routing to Phase 4). `rag-extension-protocol` provides versioned `rag.extension.v1` JSON envelopes for out-of-process extension workers. Three crates are stubbed: `rag-zenoh`, `rag-mcp`, `rag-server`. 35 tests pass across the workspace (3 core integration, 21 connector unit+integration+doctest, 7 pgvector integration, 4 config unit). Apache-2.0 licensed with full third-party attribution.
 
-**See also:** [README.md](README.md), [docs/understanding-rag.md](docs/understanding-rag.md), [docs/using-rag-in-larger-systems.md](docs/using-rag-in-larger-systems.md), [docs/vectorstore-backend-comparison.md](docs/vectorstore-backend-comparison.md), [docs/multimodal-indexing-design.md](docs/multimodal-indexing-design.md), [docs/query-rewriting-and-conversation-retrieval.md](docs/query-rewriting-and-conversation-retrieval.md), [docs/federated-search-design.md](docs/federated-search-design.md), [docs/ephemeral-chat-rag-mode.md](docs/ephemeral-chat-rag-mode.md), [rust-rag-mcp-design-roadmap.md](rust-rag-mcp-design-roadmap.md) (architecture rationale).
+**See also:** [README.md](README.md), [docs/understanding-rag.md](docs/understanding-rag.md), [docs/using-rag-in-larger-systems.md](docs/using-rag-in-larger-systems.md), [docs/vectorstore-backend-comparison.md](docs/vectorstore-backend-comparison.md), [docs/multimodal-indexing-design.md](docs/multimodal-indexing-design.md), [docs/query-rewriting-and-conversation-retrieval.md](docs/query-rewriting-and-conversation-retrieval.md), [docs/federated-search-design.md](docs/federated-search-design.md), [docs/ephemeral-chat-rag-mode.md](docs/ephemeral-chat-rag-mode.md), [docs/rag-parity-checking.md](docs/rag-parity-checking.md), [rust-rag-mcp-design-roadmap.md](rust-rag-mcp-design-roadmap.md) (architecture rationale).
 
-**Completed milestones:** M1 (v0.1.0).
+**Completed milestones:** M1 (v0.1.0), M2 (v0.2.0), M3 (v0.3.0).
 
 ---
 
@@ -35,6 +35,7 @@ Acceptance criteria:
 - A Rust program can index in-memory text through `Indexer` and retrieve citation-ready `SearchResult` records through `StandardRetriever` with no external services.
 - `cargo test -p rag-core` passes on Linux, macOS, and Windows.
 - `cargo check --workspace` passes on all three platforms without a VS Developer Prompt.
+- Parity check: compare the core trait and pipeline shape with Haystack, LlamaIndex, and LangChain; document any missing core abstractions as deferred or out of scope.
 
 ---
 
@@ -61,34 +62,37 @@ Acceptance criteria:
 - Chunks written in one process are retrieved correctly after restart with no data loss.
 - `delete_by_document` and `delete_by_source` leave no orphan rows in any table.
 - A local dev environment requires only `docker compose up` before `cargo test`.
+- Parity check: compare `VectorStore` behavior with Haystack, LlamaIndex, LangChain, and txtai document/vector store patterns, especially metadata filters, deletes, and score semantics.
 
 ---
 
-## Milestone 3 — SharePoint Connector + Document Parsing (v0.3.0)
+## Milestone 3 — SharePoint Connector + Document Parsing ✅ (v0.3.0)
 
 **Goal:** A SharePoint document library can be discovered, extracted, and indexed end-to-end, with incremental sync driven by change tokens.
 
 | Task | Notes | Status |
 |------|-------|--------|
-| Add `sharepoint_rest_api` as a path dependency | `crates/rag-connectors/Cargo.toml` | [ ] |
-| Implement `list_documents` via `sp_get_folder_files_recursive` | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Implement `load_document` via `sp_get_file_content` (base64 decode) + content-type routing | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Implement `changes_since` via `sp_get_list_changes` with change token persistence | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Route `.txt` and `.md` directly; route `.pdf`, `.docx`, `.xlsx`, `.pptx` to extension workers | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Attach `SpFile` and `SpListItem` metadata to `DocumentMetadata` (author, modified, version, content type) | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Generate stable `DocumentId` from `sha256(site_url + server_relative_url)` so re-indexing updates rather than duplicates | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Forward `sp_get_user_effective_permissions` results as permission hints in `DocumentMetadata` | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Add `max_file_bytes` guard in connector config; skip and log oversized files | `crates/rag-connectors/src/sharepoint.rs` | [ ] |
-| Add `FilesystemConnector` for local paths — useful for tests and self-hosted document stores | `crates/rag-connectors/src/filesystem.rs` | [ ] |
-| Integration tests against a mock SharePoint REST server using `wiremock` | `crates/rag-connectors/tests/` | [ ] |
+| Add `sharepoint_rest_api` as a path dependency | `crates/rag-connectors/Cargo.toml` | ✅ |
+| Implement `list_documents` via `get_folder_files_recursive` + extension/size filters | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Implement `load_document` via `get_file_content` (base64 decode) + content-type routing | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Implement `changes_since` via `get_list_changes` with change token persistence | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Route `.txt` and `.md` directly; route `.pdf`, `.docx`, `.xlsx`, `.pptx` to extension workers | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Attach file metadata to `DocumentMetadata` (modified time, content-type, size) | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Generate stable `DocumentId` from `sha256(site_url + "::" + server_relative_url)` | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Add `max_file_bytes` guard in connector config; skip and log oversized files | `crates/rag-connectors/src/sharepoint.rs` | ✅ |
+| Add `FilesystemConnector` for local paths — useful for tests and self-hosted document stores | `crates/rag-connectors/src/filesystem.rs` | ✅ |
+| Integration tests against a mock SharePoint REST server using `wiremock` | `crates/rag-connectors/tests/sharepoint_mock.rs` | ✅ |
+
+Notes:
+- Permission hints (`sp_get_user_effective_permissions`) deferred to Phase 5 (MCP layer) where the caller context is available per-request. The `DocumentMetadata.permissions` field and `PermissionFilter` trait are already in place.
 
 Acceptance criteria:
 
 - A configured `SharePointConnector` can list, load, and index all files in a SharePoint library in a single `index_all()` call.
 - Running `changes_since(token)` a second time returns only changed files, not the full library.
-- Permission hints are attached to every chunk so a `PermissionFilter` can enforce ACLs at retrieval time.
 - Search results include `source_url` pointing back to the SharePoint file and `citation.label` with the document title.
 - Files over `max_file_bytes` are skipped with a `WARN` log entry, not a panic.
+- 5 wiremock integration tests pass without a live SharePoint instance.
 
 ---
 
@@ -118,6 +122,7 @@ Acceptance criteria:
 - A worker that stops sending heartbeats is evicted within 3× the heartbeat interval.
 - The Rust runtime correctly routes `.pdf` files to a registered PDF loader worker and `.docx` to a DOCX loader worker.
 - All Zenoh transport can be secured with mTLS via config alone.
+- Parity check: compare extension ergonomics with Haystack components, LangChain integrations, Dify external knowledge workflows, and Flowise pipeline nodes; document why the worker-bus design differs.
 
 ---
 
@@ -149,6 +154,7 @@ Acceptance criteria:
 - `rag_index_source` and `rag_sync_source` return a descriptive error when `RAG_READ_ONLY=true`.
 - All 7 tools return `CallToolResult::success` on the happy path and `CallToolResult::error` on failures, never panicking.
 - `rag_get_context` respects `token_budget` by truncating passages to fit.
+- Parity check: compare tool/API behavior with Dify knowledge APIs, AnythingLLM workspace search, LlamaIndex query engines, and LangChain retriever tools; document any intentional MCP-specific differences.
 
 ---
 
@@ -176,6 +182,7 @@ Acceptance criteria:
 - `LocalOnnxEmbedder` produces embeddings without a network call and runs on all three platforms.
 - Switching embedding providers without re-indexing is blocked at startup with a clear error message explaining why dimensions must match.
 - The OpenAI API key is absent from all log output at every log level.
+- Parity check: compare embedding provider configuration, batching, retry, and local-model behavior with Haystack, LlamaIndex, LangChain, and txtai.
 
 ---
 
@@ -204,6 +211,7 @@ Acceptance criteria:
 - P99 search latency is below 200ms at a corpus of 50,000 chunks under 100 concurrent queries.
 - Throttling and transient 5xx responses from SharePoint or the embedding provider do not break indexing workflows; they are retried and logged.
 - `cargo audit` and `cargo deny` pass on every PR targeting `main`.
+- Parity check: compare observability, retry, rate-limit, and operational behavior with Dify, RAGFlow, and Haystack; document production gaps before release.
 
 ---
 
@@ -228,6 +236,7 @@ Acceptance criteria:
 - A Python developer can write and register a custom document loader in under 50 lines using `rag_worker_sdk`.
 - The PDF, DOCX, and XLSX loaders correctly extract text from real-world files and pass it to the Rust indexing pipeline.
 - Extension workers can fail and restart without affecting the running RAG server.
+- Parity check: compare Python extension author experience with Haystack custom components, LangChain loaders/tools, and LlamaIndex readers; document setup friction and missing helper APIs.
 
 ---
 
@@ -260,6 +269,7 @@ Acceptance criteria:
 - `rag-core 1.0.0` semver is stable: any breaking change requires `2.0.0`.
 - A developer who has never used the project can go from zero to a running RAG server in under 30 minutes using the deployment guide.
 - Release binaries and Docker image are built from the same CI pipeline and tagged with the same version.
+- Parity check: run a final v1.0 comparison against Dify, AnythingLLM, RAGFlow, Haystack, and LlamaIndex for deployment docs, API stability, document ingestion expectations, and retrieval/citation behavior.
 
 ---
 
@@ -281,6 +291,7 @@ Acceptance criteria:
 
 - An HTTP client that previously called a Python FastAPI RAG service can switch to `rag-server` with changes only to base URL and auth header.
 - The OpenAPI spec is accurate and can be imported into API clients without modification.
+- Parity check: compare REST/API shape with Dify external knowledge APIs, AnythingLLM API patterns, and LlamaIndex service integrations; document migration gaps and compatibility decisions.
 
 ---
 
@@ -324,7 +335,7 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 |-----------|---------|--------|
 | 1 — Core Scaffold | v0.1.0 | ✅ |
 | 2 — pgvector Store | v0.2.0 | ✅ |
-| 3 — SharePoint Connector + Document Parsing | v0.3.0 | [ ] |
+| 3 — SharePoint Connector + Document Parsing | v0.3.0 | ✅ |
 | 4 — Zenoh Extension Bus | v0.4.0 | [ ] |
 | 5 — MCP Layer | v0.5.0 | [ ] |
 | 6 — Real Embedding Providers | v0.6.0 | [ ] |
