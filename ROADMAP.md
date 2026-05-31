@@ -113,7 +113,7 @@ Acceptance criteria:
 | Implement `ZenohEmbedder` (Embedder trait), `ZenohReranker` (Reranker trait), `ZenohDocumentLoader` helper | `crates/rag-zenoh/src/lib.rs` | ✅ |
 | Add `listen_endpoints` + `multicast_scouting` to `ZenohConfig` for explicit TCP peer pairing | `crates/rag-zenoh/src/config.rs` | ✅ |
 | Write `rag_worker_sdk` Python package: `DocumentLoaderWorker`, `EmbedderWorker`, `RerankerWorker` base classes | `python/rag_worker_sdk/` | ✅ |
-| Write example Python PDF loader using `pymupdf` | `python/examples/pdf_loader.py` | ✅ |
+| Write example Python PDF loader using `pdfplumber` (MIT) — pymupdf is AGPL-excluded | `python/examples/pdf_loader.py` | ✅ |
 | Write example Python DOCX loader using `python-docx` | `python/examples/docx_loader.py` | ✅ |
 | 7 in-process Zenoh integration tests (explicit TCP loopback, no router required) | `crates/rag-zenoh/tests/integration.rs` | ✅ |
 | Add `RerankRequest/Response/Candidate/RankedChunk` to extension protocol | `crates/rag-extension-protocol/src/lib.rs` | ✅ |
@@ -134,7 +134,7 @@ Acceptance criteria:
 
 | Task | Notes | Status |
 |------|-------|--------|
-| Verify `rmcp` license before adding as dependency | `crates/rag-mcp/Cargo.toml` | [ ] |
+| Verify `rmcp` license before adding as dependency — expected MIT (Apache-2.0 compatible); confirm at implementation time | `crates/rag-mcp/Cargo.toml` | [ ] |
 | Add `rmcp` dependency | `crates/rag-mcp/Cargo.toml` | [ ] |
 | Load RAG components from `rag.toml` config file at startup | `crates/rag-mcp/src/config.rs` | [ ] |
 | Implement `rag_search(query, k, source_ids?, caller_context?)` → `SearchResult[]` | `crates/rag-mcp/src/tools.rs` | [ ] |
@@ -311,81 +311,104 @@ Acceptance criteria:
 
 ## Milestone 11 — Complete Document Loader Library (v1.2.0)
 
-**Goal:** Every common enterprise file format has a production-quality extension worker. Each format goes through a documented research spike before implementation to select the best language and library for the specific extraction task — quality of text, table, and metadata extraction takes priority over language preference.
+**Goal:** Every common enterprise file format has a production-quality extension worker. Each format goes through a documented research spike before implementation to select the best language and library — quality of extraction takes priority over language preference, and **Apache-2.0 license compatibility is a hard requirement for all distributed code**.
 
 > **Priority note:** This milestone can be brought forward ahead of M10 (HTTP API). The library is not practically useful for real document corpora until most of these loaders exist.
 
+### License constraints
+
+Every library used in a loader that is committed to this repository must be Apache-2.0 compatible. The following candidates from the initial design have **incompatible licenses and must not be used**:
+
+| Library | License | Problem | Apache-2.0 compatible alternative |
+|---------|---------|---------|-----------------------------------|
+| `pymupdf` / PyMuPDF | AGPL-3.0 OR Artifex Commercial | AGPL is copyleft; commercial license required for proprietary distribution | `pdfplumber` (MIT) — adopted in M4 `pdf_loader.py`; uses `pdfminer.six` (MIT) internally. `pypdf` (BSD-3) is a separate compatible alternative evaluated in the PDF advanced spike but not adopted. |
+| `html2text` | GPL-3.0 | Copyleft | `markdownify` (MIT) or plain `beautifulsoup4` text extraction |
+| `extract-msg` | GPL-3.0 | Copyleft | `olefile` (BSD-2-Clause) with custom MSG stream parsing — lower-level, more work |
+| `ebooklib` | AGPL-3.0 | Copyleft | Custom Rust EPUB reader via `zip` (MIT) + `quick-xml` (MIT) + `scraper` (MIT/Apache-2.0); EPUB is a ZIP of HTML files |
+| `epub` crate (Rust) | GPL-3.0 | Copyleft | Same custom Rust approach as above |
+
+**LibreOffice** (for `.doc`/`.ppt` legacy conversion) is LGPL-2.1 / Mozilla Public License. Using it as a system subprocess that users install separately is acceptable; **do not link to or bundle LibreOffice**. Document this deployment dependency clearly.
+
+**`odfpy`** is triple-licensed (Apache-2.0 / GPL / LGPL). Pin to the Apache-2.0 variant explicitly in `pyproject.toml`; the spike document must confirm this is verifiable at install time.
+
+**pymupdf note for operators:** If an operator holds an Artifex commercial license, pymupdf provides significantly better PDF quality than pdfplumber on complex layouts. The extension worker architecture supports this cleanly — an operator can run their own `pymupdf`-based worker without it being part of this repository. This should be documented in `docs/loader-registry.md`.
+
 ### Formats covered
 
-| Format group | File types | Rust or Python? |
+| Format group | File types | Approach |
 |---|---|---|
 | Text/Markup | `.html`, `.htm`, `.xml`, `.csv`, `.json` | Spike — Rust candidates exist |
-| PDF (text + layout) | `.pdf` | Python (pymupdf) — partially done in M4 |
-| PDF (advanced) | Tables, forms, scanned pages / OCR | Python (pdfplumber / pytesseract) |
-| Modern Office | `.docx`, `.xlsx`, `.pptx` | Python — partially done in M4/M8 |
-| Legacy Office | `.doc`, `.xls`, `.ppt` | Spike — LibreOffice conversion vs native |
-| OpenDocument | `.odt`, `.ods`, `.odp` | Spike — Python (odfpy) likely |
-| Email | `.eml`, `.msg` | Python (stdlib + extract-msg) |
-| Code files | `.py`, `.js`, `.ts`, `.rs`, `.java`, `.go`, `.cpp`, `.cs`, `.rb`, `.php`, … | Rust (tree-sitter) |
-| Specialised | `.epub`, `.rtf`, `.mhtml`, scanned `.tiff` | Spike — format-specific |
+| PDF (text + layout) | `.pdf` | Python: `pdfplumber` (MIT) — done in M4 |
+| PDF (advanced) | Tables, forms, scanned pages / OCR | Python: `pdfplumber` (MIT) + `pytesseract` (Apache-2.0) or `easyocr` (Apache-2.0) |
+| Modern Office | `.docx`, `.xlsx`, `.pptx` | Python: `python-docx` (MIT), `openpyxl` (MIT), `python-pptx` (MIT) — partially done in M4/M8 |
+| Legacy Office | `.doc`, `.xls`, `.ppt` | Spike — LibreOffice headless (LGPL, system dep) + `xlrd` (BSD); see license note above |
+| OpenDocument | `.odt`, `.ods`, `.odp` | Python: `odfpy` (Apache-2.0 variant) — confirm license at install time |
+| Email | `.eml`, `.msg` | EML: Python `mail-parser` (Apache-2.0); MSG: `olefile` (BSD-2) + custom parsing |
+| Code files | `.py`, `.js`, `.ts`, `.rs`, `.java`, `.go`, `.cpp`, `.cs`, `.rb`, `.php`, … | Rust: `tree-sitter` (MIT) |
+| Specialised | `.epub`, `.rtf`, `.mhtml`, scanned `.tiff` | EPUB: custom Rust (`zip`+`quick-xml`+`scraper`); RTF: `striprtf` (BSD-3); MHTML: Python stdlib; TIFF: `easyocr` (Apache-2.0) |
 
 ### Research spike tasks
 
-Each spike produces a decision document in `docs/loader-research/{group}.md` covering: candidate libraries, text-extraction quality, table handling, metadata fidelity, error resilience, license, performance, and maintenance status. The decision document must include a recommendation for language and library before implementation begins.
+Each spike produces a decision document in `docs/loader-research/{group}.md`.  
+**Required sections in every spike document:** candidate libraries, SPDX license, Apache-2.0 compatibility verdict, text-extraction quality, table handling, metadata fidelity, error resilience, performance, maintenance status, and final library recommendation. No implementation may begin without a completed spike document.
 
 | Task | Output | Status |
 |------|--------|--------|
-| Spike: HTML / XML loaders — compare Rust (`scraper`, `quick-xml`, `ammonia`) vs Python (`beautifulsoup4 + html2text`, `lxml`); evaluate semantic structure preservation for heading detection | `docs/loader-research/html-xml.md` | [ ] |
-| Spike: Spreadsheet loaders — compare Rust `calamine` vs Python `openpyxl`/`xlrd` on cell text extraction, merged cell handling, multi-sheet indexing, and formula display; evaluate whether Rust handles legacy `.xls` adequately | `docs/loader-research/spreadsheet.md` | [ ] |
-| Spike: PDF advanced — compare `pdfplumber` (table-first) vs `pymupdf` table API vs `unstructured` composite pipeline for complex PDF layouts; evaluate scanned-page detection and OCR trigger strategies (`pytesseract` vs `easyocr`) | `docs/loader-research/pdf-advanced.md` | [ ] |
-| Spike: Legacy Office formats (`.doc`, `.ppt`) — evaluate LibreOffice headless conversion pipeline vs `textract` vs direct format parsing; assess conversion fidelity and deployment complexity | `docs/loader-research/legacy-office.md` | [ ] |
-| Spike: Email formats — compare Python `email` stdlib + `mail-parser` for EML vs `extract-msg` for MSG; evaluate attachment handling and inline HTML stripping | `docs/loader-research/email.md` | [ ] |
-| Spike: Code files — evaluate `tree-sitter` (Rust bindings) for AST-aware chunking on boundaries (functions, classes, top-level blocks) vs plain-text splitting; assess breadth of supported grammar coverage | `docs/loader-research/code.md` | [ ] |
-| Spike: Specialised formats (`.epub`, `.rtf`, `.mhtml`, scanned `.tiff`) — evaluate Rust `epub` crate vs Python `ebooklib`; `striprtf` for RTF; `pytesseract`/`easyocr` for scanned TIFF | `docs/loader-research/specialised.md` | [ ] |
+| Spike: HTML / XML loaders — compare Rust (`scraper` MIT/Apache-2.0, `quick-xml` MIT) vs Python (`beautifulsoup4` MIT, `lxml` BSD-3); verify `html2text` GPL-3 is excluded; confirm `markdownify` MIT as fallback for Markdown output | `docs/loader-research/html-xml.md` | [ ] |
+| Spike: Spreadsheet loaders — compare Rust `calamine` (MIT) vs Python `openpyxl` (MIT) / `xlrd` (BSD) on cell text, merged cells, multi-sheet indexing, and legacy `.xls` coverage; all candidates are Apache-2.0 compatible | `docs/loader-research/spreadsheet.md` | [ ] |
+| Spike: PDF advanced — compare `pdfplumber` (MIT) table API vs `pypdf` (BSD-3) for complex layouts; evaluate scanned-page detection and OCR library choice between `pytesseract` (Apache-2.0) and `easyocr` (Apache-2.0); **pymupdf is excluded (AGPL)** but document the quality gap and the commercial-license operator path | `docs/loader-research/pdf-advanced.md` | [ ] |
+| Spike: Legacy Office formats (`.doc`, `.ppt`) — evaluate LibreOffice headless subprocess (LGPL, system dep — acceptable) vs pure-Python tools (`python-docx`/`python-pptx` cannot read binary formats); document LibreOffice installation requirement; evaluate `xlrd` (BSD) for `.xls` | `docs/loader-research/legacy-office.md` | [ ] |
+| Spike: Email formats — `mail-parser` (Apache-2.0) for EML; for MSG, compare `olefile` (BSD-2) low-level approach vs documenting `extract-msg` as **GPL-excluded** and describing a custom `olefile`-based parser; evaluate quality tradeoff | `docs/loader-research/email.md` | [ ] |
+| Spike: Code files — evaluate `tree-sitter` (MIT) Rust bindings for AST-aware chunking; confirm language grammar licenses (Python/JS/TS/Rust/Java/Go/C++/C#/Ruby/PHP grammars are MIT); compare against plain-text splitting for retrieval quality | `docs/loader-research/code.md` | [ ] |
+| Spike: Specialised formats — EPUB: compare custom Rust (`zip` MIT + `quick-xml` MIT + `scraper` MIT) vs documenting `ebooklib` as **AGPL-excluded**; RTF: `striprtf` (BSD-3); MHTML: Python `email` stdlib; scanned TIFF: `easyocr` (Apache-2.0) | `docs/loader-research/specialised.md` | [ ] |
 
 ### Implementation tasks
 
-Tasks are sequenced: research spike → implementation → test with real-world files → register in extension registry.
+Tasks are sequenced: spike approved → implementation → test with real-world files → register in extension registry.
 
 | Task | Notes | Status |
 |------|-------|--------|
-| HTML loader | Rust crate `crates/rag-loaders/` with `html` feature; strip tags, detect headings for `DocumentSection.title`, preserve `<table>` as pipe-formatted text | [ ] |
-| XML loader | Rust; extract text nodes, use element names as section titles; configurable path-to-section mapping | [ ] |
-| CSV loader | Rust (`csv` crate); header row → section title per column group; configurable row-range chunking | [ ] |
-| JSON loader | Rust (`serde_json`); flatten nested objects to readable text; configurable depth limit | [ ] |
-| PPTX loader | Python worker `python/loaders/pptx_loader.py`; one `DocumentSection` per slide with slide title and speaker notes | [ ] |
-| PDF table extraction | Python worker extension to existing `pdf_loader.py`; detect and extract tables as pipe-formatted text sections with page numbers | [ ] |
-| Scanned PDF / OCR | Python worker; detect scanned pages via image coverage threshold, run OCR pipeline, return per-page sections with page numbers | [ ] |
-| XLSX loader (production) | Promote `python/examples/xlsx_loader.py` from M8 to a production worker; add sheet-level sections, merged cell flattening, named range extraction | [ ] |
-| DOC / PPT legacy loader | Python worker using LibreOffice headless (`soffice --headless --convert-to docx`); convert to modern format, delegate to DOCX/PPTX loader | [ ] |
-| XLS legacy loader | Defer to spreadsheet spike decision; likely Rust `calamine` or Python `xlrd` | [ ] |
-| ODF loader (.odt, .ods, .odp) | Python worker using `odfpy`; map ODF paragraph styles to `DocumentSection.title` for text; sheet/page aware for spreadsheets and presentations | [ ] |
-| EML loader | Python worker; extract plain-text and HTML body parts, thread subject as document title, strip quoted replies | [ ] |
-| MSG loader (Outlook) | Python worker using `extract-msg`; extract body, subject, sender, date; attachments flagged as child documents | [ ] |
-| RTF loader | Python worker using `striprtf`; extract plain text; map RTF section markers where detected | [ ] |
-| EPUB loader | Defer to specialised spike decision; likely Python `ebooklib`, one section per chapter | [ ] |
-| MHTML / MHT loader | Python worker using Python `email` stdlib to unpack archive; extract primary HTML part, delegate to HTML loader | [ ] |
-| Code loader (Rust native) | Rust crate `crates/rag-loader-code/` using `tree-sitter` with grammars for the top 10 languages; chunk on function/class boundaries; include docstrings and signature in `DocumentSection.title` | [ ] |
-| Scanned TIFF / image OCR | Python worker using `easyocr` (preferred) or `pytesseract` fallback; one section per detected text block; page metadata from TIFF tags | [ ] |
-| Register all loaders in extension registry docs | Document `content_type` and `extension_id` for each loader so operators know what to run | `docs/loader-registry.md` | [ ] |
-| Test suite: real-world sample files | One test file per format in `tests/fixtures/`; integration test that each loader returns non-empty `text` and correct `page_count` | `tests/loader_integration/` | [ ] |
-| Loader comparison matrix | Document extraction quality, table fidelity, metadata completeness, and known limitations side-by-side | `docs/loader-research/comparison-matrix.md` | [ ] |
+| License audit: run `cargo deny check licenses` and `pip-licenses` against all loader dependencies before any implementation merges | CI gate — fails on non-compatible SPDX identifiers | [ ] |
+| HTML loader | Rust crate `crates/rag-loaders/` with `html` feature; `scraper` (MIT/Apache-2.0); strip tags, detect `<h1>`–`<h6>` for `DocumentSection.title`, preserve `<table>` as pipe-formatted text | [ ] |
+| XML loader | Rust (`quick-xml` MIT); extract text nodes, use element names as section titles; configurable path-to-section mapping | [ ] |
+| CSV loader | Rust (`csv` MIT/Unlicense); header row → section title per column group; configurable row-range chunking | [ ] |
+| JSON loader | Rust (`serde_json` MIT/Apache-2.0, already a dep); flatten nested objects to readable text; configurable depth limit | [ ] |
+| PPTX loader | Python: `python-pptx` (MIT); one `DocumentSection` per slide with slide title and speaker notes | [ ] |
+| PDF table extraction | Extend existing `pdf_loader.py` (`pdfplumber` MIT); already partially implemented in M4; add configurable table extraction mode | [ ] |
+| Scanned PDF / OCR | Python: detect scanned pages by extractable-text coverage; route to `easyocr` (Apache-2.0) or `pytesseract` (Apache-2.0); return per-page sections | [ ] |
+| XLSX loader (production) | Promote M8 example to production; use `openpyxl` (MIT); sheet-level sections, merged cell flattening, named range extraction | [ ] |
+| DOC / PPT legacy loader | Python: LibreOffice headless subprocess (`soffice --headless --convert-to docx`); convert to modern format, delegate to DOCX/PPTX loader; document LibreOffice as a required system dependency | [ ] |
+| XLS legacy loader | Rust `calamine` (MIT) if spike confirms adequate coverage; Python `xlrd` (BSD) as fallback | [ ] |
+| ODF loader (.odt, .ods, .odp) | Python: `odfpy` (Apache-2.0 variant — must be pinned explicitly); paragraph-style → section title for text; sheet/page aware for Calc and Impress | [ ] |
+| EML loader | Python: `mail-parser` (Apache-2.0) + stdlib `email`; extract plain-text and HTML body, thread subject as title, strip quoted replies | [ ] |
+| MSG loader (Outlook) | Python: `olefile` (BSD-2-Clause) + custom MSG property-stream parser; extract body, subject, sender, date; flag attachments as child documents; document quality limitations vs GPL `extract-msg` | [ ] |
+| RTF loader | Python: `striprtf` (BSD-3-Clause); extract plain text; detect RTF section markers where present | [ ] |
+| EPUB loader | Rust: custom reader using `zip` (MIT) + `quick-xml` (MIT) + `scraper` (MIT/Apache-2.0); one `DocumentSection` per chapter from OPF spine; `ebooklib` (AGPL) is excluded | [ ] |
+| MHTML / MHT loader | Python: stdlib `email` (unpacks MIME archive); extract primary HTML part, delegate to HTML loader | [ ] |
+| Code loader (Rust native) | Rust crate `crates/rag-loader-code/` using `tree-sitter` (MIT) with grammars for top 10 languages (all MIT); chunk on function/class/top-level boundaries; include signature + docstring in `DocumentSection.title` | [ ] |
+| Scanned TIFF / image OCR | Python: `easyocr` (Apache-2.0) preferred; `pytesseract` (Apache-2.0) as fallback; one section per text block; page metadata from TIFF IFD tags | [ ] |
+| Register all loaders in extension registry docs | Document `content_type`, `extension_id`, required system deps, and known limitations per loader | `docs/loader-registry.md` | [ ] |
+| Test suite: real-world sample files | One test file per format in `tests/fixtures/`; integration test verifying non-empty `text`, correct `page_count`, and non-empty `sections` | `tests/loader_integration/` | [ ] |
+| Loader comparison matrix | Document extraction quality, table fidelity, metadata completeness, known limitations, and the quality gap where commercial-only libraries would improve output | `docs/loader-research/comparison-matrix.md` | [ ] |
 
 ### Acceptance criteria
 
-- Every format in the table above has a working extension worker that returns a non-empty `LoadDocumentResponse.text`.
+- Every format in the table above has a working extension worker returning non-empty `LoadDocumentResponse.text`.
 - All loaders preserve section structure: `DocumentSection.title` is populated where the source format has headings, slides, sheets, or chapters.
 - All loaders populate `DocumentSection.page` where the source format has discrete pages.
 - PDF and Office loaders populate `DocumentMetadata.author` and `DocumentMetadata.page_count` where the source format stores these.
-- The code loader chunks on AST boundaries (function/class/top-level block) rather than arbitrary character counts.
-- The scanned PDF and TIFF loaders correctly route pages to OCR only when they contain no selectable text.
-- Each loader has a corresponding research spike document justifying the language and library choice.
+- The code loader chunks on AST boundaries (function/class/top-level block), not arbitrary character counts.
+- The scanned PDF and TIFF loaders route pages to OCR only when they contain no selectable text.
+- **All loader dependencies are Apache-2.0 compatible**; `cargo deny check licenses` and `pip-licenses` pass with no unlisted identifiers in CI.
+- The MSG loader documents the quality gap vs `extract-msg` (GPL-excluded) so operators understand the tradeoff and can supply their own compliant worker.
+- `docs/loader-registry.md` documents any loader that requires a non-default system dependency (LibreOffice, Tesseract).
+- Each loader has a completed spike document justifying the library choice and confirming the license verdict.
 - All loaders are tested against real-world (not synthetic) sample files.
-- Parity check: compare loader quality and breadth with RAGFlow's parser suite, LlamaIndex `SimpleDirectoryReader`/`LlamaParse`, and Unstructured; document any formats covered by those systems that remain missing or lower quality here.
+- Parity check: compare loader quality and breadth with RAGFlow's parser suite, LlamaIndex `SimpleDirectoryReader`/`LlamaParse`, and Unstructured; document any formats covered by those systems that remain missing or lower quality here, and note where commercial-license libraries would close the quality gap.
 
 ---
 
-
+## Deferred or Explicitly Out of Scope
 
 - **Microsoft Graph API parity** — Graph endpoints overlap with SharePoint REST for document access but serve a broader Microsoft 365 surface (Teams, Outlook, OneDrive personal). Not in scope unless a specific SharePoint-adjacent Graph convenience workflow justifies it.
 - **SaaS or hosted service components** — Multi-tenant hosting, billing, usage metering, and control planes are outside the scope of this library.
