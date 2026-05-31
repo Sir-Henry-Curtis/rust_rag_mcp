@@ -309,7 +309,83 @@ Acceptance criteria:
 
 ---
 
-## Deferred or Explicitly Out of Scope
+## Milestone 11 — Complete Document Loader Library (v1.2.0)
+
+**Goal:** Every common enterprise file format has a production-quality extension worker. Each format goes through a documented research spike before implementation to select the best language and library for the specific extraction task — quality of text, table, and metadata extraction takes priority over language preference.
+
+> **Priority note:** This milestone can be brought forward ahead of M10 (HTTP API). The library is not practically useful for real document corpora until most of these loaders exist.
+
+### Formats covered
+
+| Format group | File types | Rust or Python? |
+|---|---|---|
+| Text/Markup | `.html`, `.htm`, `.xml`, `.csv`, `.json` | Spike — Rust candidates exist |
+| PDF (text + layout) | `.pdf` | Python (pymupdf) — partially done in M4 |
+| PDF (advanced) | Tables, forms, scanned pages / OCR | Python (pdfplumber / pytesseract) |
+| Modern Office | `.docx`, `.xlsx`, `.pptx` | Python — partially done in M4/M8 |
+| Legacy Office | `.doc`, `.xls`, `.ppt` | Spike — LibreOffice conversion vs native |
+| OpenDocument | `.odt`, `.ods`, `.odp` | Spike — Python (odfpy) likely |
+| Email | `.eml`, `.msg` | Python (stdlib + extract-msg) |
+| Code files | `.py`, `.js`, `.ts`, `.rs`, `.java`, `.go`, `.cpp`, `.cs`, `.rb`, `.php`, … | Rust (tree-sitter) |
+| Specialised | `.epub`, `.rtf`, `.mhtml`, scanned `.tiff` | Spike — format-specific |
+
+### Research spike tasks
+
+Each spike produces a decision document in `docs/loader-research/{group}.md` covering: candidate libraries, text-extraction quality, table handling, metadata fidelity, error resilience, license, performance, and maintenance status. The decision document must include a recommendation for language and library before implementation begins.
+
+| Task | Output | Status |
+|------|--------|--------|
+| Spike: HTML / XML loaders — compare Rust (`scraper`, `quick-xml`, `ammonia`) vs Python (`beautifulsoup4 + html2text`, `lxml`); evaluate semantic structure preservation for heading detection | `docs/loader-research/html-xml.md` | [ ] |
+| Spike: Spreadsheet loaders — compare Rust `calamine` vs Python `openpyxl`/`xlrd` on cell text extraction, merged cell handling, multi-sheet indexing, and formula display; evaluate whether Rust handles legacy `.xls` adequately | `docs/loader-research/spreadsheet.md` | [ ] |
+| Spike: PDF advanced — compare `pdfplumber` (table-first) vs `pymupdf` table API vs `unstructured` composite pipeline for complex PDF layouts; evaluate scanned-page detection and OCR trigger strategies (`pytesseract` vs `easyocr`) | `docs/loader-research/pdf-advanced.md` | [ ] |
+| Spike: Legacy Office formats (`.doc`, `.ppt`) — evaluate LibreOffice headless conversion pipeline vs `textract` vs direct format parsing; assess conversion fidelity and deployment complexity | `docs/loader-research/legacy-office.md` | [ ] |
+| Spike: Email formats — compare Python `email` stdlib + `mail-parser` for EML vs `extract-msg` for MSG; evaluate attachment handling and inline HTML stripping | `docs/loader-research/email.md` | [ ] |
+| Spike: Code files — evaluate `tree-sitter` (Rust bindings) for AST-aware chunking on boundaries (functions, classes, top-level blocks) vs plain-text splitting; assess breadth of supported grammar coverage | `docs/loader-research/code.md` | [ ] |
+| Spike: Specialised formats (`.epub`, `.rtf`, `.mhtml`, scanned `.tiff`) — evaluate Rust `epub` crate vs Python `ebooklib`; `striprtf` for RTF; `pytesseract`/`easyocr` for scanned TIFF | `docs/loader-research/specialised.md` | [ ] |
+
+### Implementation tasks
+
+Tasks are sequenced: research spike → implementation → test with real-world files → register in extension registry.
+
+| Task | Notes | Status |
+|------|-------|--------|
+| HTML loader | Rust crate `crates/rag-loaders/` with `html` feature; strip tags, detect headings for `DocumentSection.title`, preserve `<table>` as pipe-formatted text | [ ] |
+| XML loader | Rust; extract text nodes, use element names as section titles; configurable path-to-section mapping | [ ] |
+| CSV loader | Rust (`csv` crate); header row → section title per column group; configurable row-range chunking | [ ] |
+| JSON loader | Rust (`serde_json`); flatten nested objects to readable text; configurable depth limit | [ ] |
+| PPTX loader | Python worker `python/loaders/pptx_loader.py`; one `DocumentSection` per slide with slide title and speaker notes | [ ] |
+| PDF table extraction | Python worker extension to existing `pdf_loader.py`; detect and extract tables as pipe-formatted text sections with page numbers | [ ] |
+| Scanned PDF / OCR | Python worker; detect scanned pages via image coverage threshold, run OCR pipeline, return per-page sections with page numbers | [ ] |
+| XLSX loader (production) | Promote `python/examples/xlsx_loader.py` from M8 to a production worker; add sheet-level sections, merged cell flattening, named range extraction | [ ] |
+| DOC / PPT legacy loader | Python worker using LibreOffice headless (`soffice --headless --convert-to docx`); convert to modern format, delegate to DOCX/PPTX loader | [ ] |
+| XLS legacy loader | Defer to spreadsheet spike decision; likely Rust `calamine` or Python `xlrd` | [ ] |
+| ODF loader (.odt, .ods, .odp) | Python worker using `odfpy`; map ODF paragraph styles to `DocumentSection.title` for text; sheet/page aware for spreadsheets and presentations | [ ] |
+| EML loader | Python worker; extract plain-text and HTML body parts, thread subject as document title, strip quoted replies | [ ] |
+| MSG loader (Outlook) | Python worker using `extract-msg`; extract body, subject, sender, date; attachments flagged as child documents | [ ] |
+| RTF loader | Python worker using `striprtf`; extract plain text; map RTF section markers where detected | [ ] |
+| EPUB loader | Defer to specialised spike decision; likely Python `ebooklib`, one section per chapter | [ ] |
+| MHTML / MHT loader | Python worker using Python `email` stdlib to unpack archive; extract primary HTML part, delegate to HTML loader | [ ] |
+| Code loader (Rust native) | Rust crate `crates/rag-loader-code/` using `tree-sitter` with grammars for the top 10 languages; chunk on function/class boundaries; include docstrings and signature in `DocumentSection.title` | [ ] |
+| Scanned TIFF / image OCR | Python worker using `easyocr` (preferred) or `pytesseract` fallback; one section per detected text block; page metadata from TIFF tags | [ ] |
+| Register all loaders in extension registry docs | Document `content_type` and `extension_id` for each loader so operators know what to run | `docs/loader-registry.md` | [ ] |
+| Test suite: real-world sample files | One test file per format in `tests/fixtures/`; integration test that each loader returns non-empty `text` and correct `page_count` | `tests/loader_integration/` | [ ] |
+| Loader comparison matrix | Document extraction quality, table fidelity, metadata completeness, and known limitations side-by-side | `docs/loader-research/comparison-matrix.md` | [ ] |
+
+### Acceptance criteria
+
+- Every format in the table above has a working extension worker that returns a non-empty `LoadDocumentResponse.text`.
+- All loaders preserve section structure: `DocumentSection.title` is populated where the source format has headings, slides, sheets, or chapters.
+- All loaders populate `DocumentSection.page` where the source format has discrete pages.
+- PDF and Office loaders populate `DocumentMetadata.author` and `DocumentMetadata.page_count` where the source format stores these.
+- The code loader chunks on AST boundaries (function/class/top-level block) rather than arbitrary character counts.
+- The scanned PDF and TIFF loaders correctly route pages to OCR only when they contain no selectable text.
+- Each loader has a corresponding research spike document justifying the language and library choice.
+- All loaders are tested against real-world (not synthetic) sample files.
+- Parity check: compare loader quality and breadth with RAGFlow's parser suite, LlamaIndex `SimpleDirectoryReader`/`LlamaParse`, and Unstructured; document any formats covered by those systems that remain missing or lower quality here.
+
+---
+
+
 
 - **Microsoft Graph API parity** — Graph endpoints overlap with SharePoint REST for document access but serve a broader Microsoft 365 surface (Teams, Outlook, OneDrive personal). Not in scope unless a specific SharePoint-adjacent Graph convenience workflow justifies it.
 - **SaaS or hosted service components** — Multi-tenant hosting, billing, usage metering, and control planes are outside the scope of this library.
@@ -366,3 +442,4 @@ Genuine improvements that should not displace the milestones above. Revisit afte
 | 8 — Python Extension SDK | v0.8.0 | [ ] |
 | 9 — Security Audit + Release Gates | v1.0.0 | [ ] |
 | 10 — HTTP API | v1.1.0 | [ ] |
+| 11 — Complete Document Loader Library | v1.2.0 | [ ] |
