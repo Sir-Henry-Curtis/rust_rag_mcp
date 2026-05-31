@@ -28,7 +28,7 @@ each ships: `ParagraphChunker`, `MockEmbedder`, `MemoryVectorStore`,
 | Gap | Reference | Decision |
 |-----|-----------|----------|
 | `ParagraphChunker` splits only on `\n\n`; no sentence, recursive, or token-aware splitting | LangChain `RecursiveCharacterTextSplitter`, Haystack `SentenceSplitter` | **Defer** — add `RecursiveChunker` and `MarkdownChunker` to parking lot |
-| `ChunkMetadata.section` field exists but is never populated by `ParagraphChunker`; section must come from extension workers | LlamaIndex `TextNode.relationships` | **Adopt** — `ParagraphChunker` should detect `## Heading` lines and populate `section` |
+| `ChunkMetadata.section` field exists but is never populated by `ParagraphChunker`; section must come from extension workers | LlamaIndex `TextNode.relationships` | **Adopted** ✅ — `ParagraphChunker` now detects ATX headings (`#`–`######`), flushes the previous section buffer without overlap, labels all subsequent chunks with `ChunkMetadata.section`. 7 unit tests. |
 | `SearchFilter` only supports `source_ids`, `document_ids`, `content_types`; no field-level metadata operators | LlamaIndex `MetadataFilters` (eq/gt/lt/in/and/or) | **Defer to M5** — MCP tools will expose a small subset; full operator tree can follow in M7 |
 | `embed_query` defaults to `embed_texts(&[query])`; asymmetric embedding models use different models for query vs document | Haystack `SentenceTransformersTextEmbedder` supports asymmetric models | **Adapt in M6** — add `embed_query_mode: QueryMode` to `Embedder` config, defaulting to symmetric |
 | No hybrid (vector + keyword) search path | Haystack `BM25Retriever + EmbeddingRetriever` fusion, txtai weighted hybrid | **Defer** — parking lot item; pgvector supports `ts_rank` alongside `<=>` |
@@ -43,7 +43,7 @@ each ships: `ParagraphChunker`, `MockEmbedder`, `MemoryVectorStore`,
 
 ### Action items
 
-- Add `section`-aware detection to `ParagraphChunker` (detect `## heading` lines, set `ChunkMetadata.section`).
+- ~~Add `section`-aware detection to `ParagraphChunker`~~ — **Done** in `crates/rag-core/src/chunker.rs`.
 - Add to parking lot: `RecursiveChunker`, `MarkdownChunker`.
 - Note in M6 plan: `Embedder` config needs an `embed_query_mode` field for asymmetric models.
 
