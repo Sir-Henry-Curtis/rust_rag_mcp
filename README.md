@@ -156,6 +156,15 @@ cargo about generate about.hbs > third-party-licenses.html
 
 See [ROADMAP.md](ROADMAP.md) for the full plan toward v1.0.
 
+## Additional Docs
+
+- [Understanding RAG](docs/understanding-rag.md) explains why this project exists and how it complements direct SharePoint MCP access.
+- [Using rust-rag-mcp in Larger Systems](docs/using-rag-in-larger-systems.md) describes evaluation workflows, human approval flows, and agentic research patterns.
+- [VectorStore Backend Comparison](docs/vectorstore-backend-comparison.md) compares pgvector, OpenSearch, Elasticsearch, Qdrant, Weaviate, Pinecone, and other adapter candidates.
+- [Multi-modal Indexing Design](docs/multimodal-indexing-design.md) outlines how diagrams, charts, screenshots, and scanned pages can be indexed through vision extension workers.
+- [Query Rewriting and Conversation-Aware Retrieval](docs/query-rewriting-and-conversation-retrieval.md) details query expansion, follow-up resolution, and multi-query retrieval planning.
+- [Federated Search Design](docs/federated-search-design.md) describes fan-out search across multiple independent RAG instances and merged citation-ready results.
+
 ## Contributing
 
 Issues and pull requests are welcome. Please read the ROADMAP before opening a large feature PR to confirm it aligns with the planned direction.

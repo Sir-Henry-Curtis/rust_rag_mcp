@@ -2,12 +2,13 @@
 name        = "rag-connectors"
 version.workspace = true
 edition.workspace = true
-description = "Rust-native source connectors: SharePoint, filesystem, S3, Git (Phase 3+)"
+description = "Rust-native source connectors for rag-core: SharePoint, filesystem, S3, Git"
 license.workspace = true
 
 [features]
-default    = ["sharepoint"]
-sharepoint = []
+default    = ["sharepoint", "filesystem"]
+sharepoint = ["dep:sharepoint-mcp"]
+filesystem = ["dep:walkdir"]
 
 [dependencies]
 rag-core.workspace    = true
@@ -20,4 +21,22 @@ thiserror.workspace   = true
 tracing.workspace     = true
 chrono.workspace      = true
 uuid.workspace        = true
-# Phase 3: add sharepoint_rest_api as a path/git dependency
+
+# SHA-256 for stable document IDs from (site_url, server_relative_url)
+sha2 = "0.10"
+
+# Base64 decode for SharePoint file content (get_file_content returns base64)
+base64 = "0.22"
+
+# SharePoint connector — path dep for local development.
+# For CI/CD or published releases replace with a git URL or registry crate via
+# [patch.crates-io] in the workspace Cargo.toml.
+sharepoint-mcp = { path = "../../../sharepoint_rest_api-rs", default-features = false, optional = true }
+
+# Filesystem connector — recursive directory walking
+walkdir = { version = "2", optional = true }
+
+[dev-dependencies]
+tokio    = { version = "1", features = ["full", "test-util"] }
+wiremock = "0.6"
+tempfile = "3"
